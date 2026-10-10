@@ -23,6 +23,24 @@ Once flowing, **PRTG historical monitoring works identically to every other metr
 
 **Hardware note — voltage level and serial port choice:** the HC-05/06 module's logic is 3.3V; the Arduino Uno's TX pin drives 5V. A voltage divider (or logic-level shifter) is required on the Arduino-TX → module-RX line to avoid over-driving the module — the module's TX (3.3V) into the Arduino's RX is fine as-is. Use `SoftwareSerial` on two spare digital pins for the Bluetooth link rather than hardware Serial (pins 0/1), so the USB/Serial Monitor stays free for sketch upload and debugging.
 
+## **6.3d Arduino-C — DHT11 + IR AC control** ⏳ Proposed 2026-08-29, nothing purchased
+
+> **Reconstructed 2026-10-10** from the hub's `ip-vlan-plan.md` (VLAN 30 table, Wireless section, Certificate Tracking, Change Log 2026-08-29), which references this section. The original 2026-08-29 build-plan text wasn't in the 2026-10-10 export of the ONC HQ Lab project. Only documented facts are stated; everything else is listed as open.
+
+- **Sensors/actuator:** DHT11 temperature/humidity + IR transmitter for air-conditioning control.
+- **Link:** HC-05/06 Classic Bluetooth (SPP), same `rfcomm` serial-bridge pattern as Arduino-A/B (6.3c).
+- **Collector:** `pi-hvac` (6.4), shared with Arduino-D. Wireless-only on `ONCIoT` (VLAN 30); `pi-hvac.lab.local` Client Auth cert once built.
+- **Automation fit:** this is the actuator side of Loop 3 below (temperature threshold → `homelab/control/hvac/<zone>/target`).
+- **Open (not yet decided):** IR transmitter part and AC protocol/codes, how the control topic reaches the Arduino over `rfcomm` (the Pi would have to subscribe and write back down the serial link), wire format for the readings, the `pi-hvac` mosquitto account/ACL, and the zone naming.
+
+## **6.3e Arduino-D — SCT-013 + ZMPT101B energy monitor** ⏳ Proposed 2026-08-29, nothing purchased
+
+> **Reconstructed 2026-10-10**, same sources and caveat as 6.3d.
+
+- **Sensors:** SCT-013 split-core current transformer + ZMPT101B AC voltage sensor, so the node can calculate power and energy.
+- **Link and collector:** HC-05/06 Classic Bluetooth → `pi-hvac`, alongside Arduino-C (two concurrent `rfcomm` binds, the same pattern 6.3c decided for `pi-arduino`).
+- **Open (not yet decided):** SCT-013 variant (current vs voltage output) and burden/bias circuit, ZMPT101B calibration, sampling and RMS method, reporting interval, wire format and topic (`homelab/telemetry/…`), and mains-safety handling for the ZMPT101B wiring.
+
 ## **6.4 Raspberry Pi Zero W fleet — BLE & Classic-BT/rfcomm gateways** ⏳ Architecture finalized 2026-08-22, not yet built
 
 **Hardware correction:** this section previously assumed a Raspberry Pi 4 with a 64-bit OS. The actual board (confirmed via photo, back-of-board silkscreen) is a **Raspberry Pi Zero W V1.1** — single-core ARM11 (armv6), 512 MB RAM. That CPU cannot run a 64-bit OS at all; every board in this fleet needs **Raspberry Pi OS Lite (32-bit/armhf)**. Expect meaningfully less headroom than the original Pi 4 plan assumed, especially for `pi-pm1630`'s persistent BLE GATT connection — this is part of why the fleet is split across three boards by role instead of stacking everything on one.
@@ -35,7 +53,9 @@ Once flowing, **PRTG historical monitoring works identically to every other metr
 | --- | --- | --- | --- |
 | `pi-pm1630` | PM1630 BLE GATT collector (migrated from Mac, see 6.3b) | Persistent BLE GATT connection via `bleak`/BlueZ | ⏳ Planned |
 | `pi-arduino` | Classic-BT/rfcomm collector for both Arduino-A and Arduino-B (see 6.3c) | Two concurrent `rfcomm` binds via `pyserial` | ⏳ Planned |
-| `pi-reserve` | Unassigned — capacity fallback if `pi-arduino` can't stably hold both Arduino links at once (see 6.3c) | none yet | ⏳ Reserved, not built |
+| `pi-hvac` (formerly `pi-reserve`) | Classic-BT/rfcomm collector for Arduino-C and Arduino-D (see 6.3d/6.3e) | Two concurrent `rfcomm` binds via `pyserial` | ⏳ Proposed 2026-08-29, nothing purchased |
+
+**Update 2026-08-29 (recorded 2026-10-10):** `pi-reserve` was repurposed as `pi-hvac`, the shared collector for Arduino-C/D (6.3d/6.3e). Its old role as the capacity fallback for `pi-arduino` no longer exists. Later mentions of `pi-reserve` in 6.4/6.8/6.5 describe the 2026-08-22/24 plan.
 
 **Update 2026-08-24 — general BLE gateway role deferred, not folded in.** The original general-purpose BLE gateway role from this section's earlier draft (`ble_scanner.py` → `homelab/telemetry/ble/<mac>`) is **not** part of `pi-pm1630`'s build. Running continuous BLE discovery scanning on the same adapter that holds a persistent GATT connection to the PM1630 risks contention — the same class of risk already flagged for `pi-arduino`'s dual `rfcomm` links. `pi-pm1630` stays minimal: PM1630 collector only, reusing the existing `pm1630` mosquitto credentials (see 6.3b) — no new account needed for this build. The general gateway role, and therefore which Pi first authenticates via 8883 mTLS, is now an open question rather than a default — whichever of `pi-pm1630` or `pi-arduino` requests its Client Auth leaf cert first closes that gap (see 6.8, Stage 4).
 
