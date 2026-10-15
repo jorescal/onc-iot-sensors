@@ -2,6 +2,7 @@
 
 Format: `YYYY-MM-DD [origin] summary`. Origin is `hub`, `section` or `import`.
 
+- 2026-10-14 [hub] Lab firewall rebuilt: the Site A inter-VLAN policy now lives in the MX Outbound table. Every `ONCIoT` Pi is on the Servers VLAN, which can now reach only the lab DNS/AD server among other lab VLANs, plus the Internet. Pi → broker is same-VLAN and unaffected. No action needed here.
 - 2026-10-10 [import] Section created. Moved §6.3c, §6.4, §6.8 and §6.5 verbatim from the hub's
   `homelab_build_plan_v5.md` into `docs/iot-sensor-fleet.md` (tokenized). Known gap: the hub's `ip-vlan-plan.md`
   refers to "build plan 6.3d/6.3e" for the Arduino-C/D (`pi-hvac`) design, but those sections didn't exist in
